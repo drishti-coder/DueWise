@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DueWise | Your Campus. Your Tasks. Your Success.</title>
+  <meta name="description" content="DueWise is a student assignment and deadline tracker. Add assignments, track due dates, and stay on top of your coursework.">
+  <meta name="theme-color" content="#0F1535">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%236D2FF0'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <!-- Modern font from Google Fonts. If you are offline, the browser falls back to the system font automatically. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Tiny script that applies the saved theme BEFORE the page paints, so dark mode never flashes white on refresh. -->
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('duewise.theme');
+        if (!theme) {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+      } catch (e) { /* storage blocked: keep the default light theme */ }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <noscript><p class="noscript">DueWise needs JavaScript to run. Please enable JavaScript in your browser.</p></noscript>
+
+  <div class="app">
+
+    <!-- ===================== LEFT SIDEBAR (desktop / tablet) ===================== -->
+    <aside class="sidebar" aria-label="Sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i data-icon="check" data-size="22"></i></span>
+        <div class="brand-text">
+          <span class="brand-name">DueWise</span>
+          <span class="brand-tag">Your Campus. Your Tasks. Your Success.</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Main navigation">
+        <button type="button" class="nav-item" data-nav="dashboard"><i data-icon="dashboard"></i><span class="nav-label">Dashboard</span></button>
+        <button type="button" class="nav-item" data-nav="all"><i data-icon="list"></i><span class="nav-label">All Assignments</span><span class="nav-count" id="navAllCount">0</span></button>
+        <button type="button" class="nav-item" data-nav="pending"><i data-icon="clock"></i><span class="nav-label">Pending</span><span class="nav-count" id="navPendingCount">0</span></button>
+        <button type="button" class="nav-item" data-nav="completed"><i data-icon="checkCircle"></i><span class="nav-label">Completed</span><span class="nav-count" id="navCompletedCount">0</span></button>
+        <button type="button" class="nav-item" data-nav="calendar"><i data-icon="calendar"></i><span class="nav-label">Calendar</span></button>
+        <button type="button" class="nav-item" data-nav="settings"><i data-icon="settings"></i><span class="nav-label">Settings</span></button>
+      </nav>
+
+      <div class="sidebar-card">
+        <div class="sidebar-card-top">
+          <span>Overall progress</span>
+          <strong id="sidebarPercent">0%</strong>
+        </div>
+        <div class="mini-track"><div class="mini-fill" id="sidebarProgressFill"></div></div>
+        <p id="sidebarProgressText">Add an assignment to begin.</p>
+        <button type="button" class="btn btn-light btn-block" data-action="add"><i data-icon="plus" data-size="16"></i>Add Assignment</button>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN CONTENT AREA ===================== -->
+    <div class="content">
+
+      <!-- TOP NAVIGATION BAR -->
+      <header class="topbar">
+        <div class="topbar-greeting">
+          <p class="greeting" id="greetingText">Welcome</p>
+          <p class="today-date" id="todayDate"></p>
+        </div>
+
+        <div class="search" role="search">
+          <i data-icon="search" data-size="18"></i>
+          <input type="search" id="searchInput" placeholder="Search assignments by title" aria-label="Search assignments by title" autocomplete="off" maxlength="100">
+          <kbd title="Press / to focus search">/</kbd>
+        </div>
+
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-primary btn-add-top" data-action="add"><i data-icon="plus" data-size="18"></i><span>Add Assignment</span></button>
+
+          <div class="dropdown-wrap">
+            <button type="button" class="icon-btn icon-btn-lg" id="notifBtn" data-action="toggle-notif" aria-haspopup="true" aria-expanded="false" aria-controls="notifPanel" title="Deadline alerts">
+              <i data-icon="bell"></i>
+              <span class="notif-badge" id="notifBadge" hidden>0</span>
+            </button>
+            <div class="dropdown notif-panel" id="notifPanel" hidden>
+              <div class="dropdown-head">
+                <strong>Deadline alerts</strong>
+                <span class="muted-sm">Overdue, today and tomorrow</span>
+              </div>
+              <ul class="notif-list" id="notifList"></ul>
+            </div>
+          </div>
+
+          <button type="button" class="icon-btn icon-btn-lg" id="themeToggle" data-action="toggle-theme" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
+
+          <div class="dropdown-wrap">
+            <button type="button" class="avatar" id="profileBtn" data-action="toggle-profile" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu" title="Student profile">
+              <span id="profileInitials">S</span>
+            </button>
+            <div class="dropdown profile-menu" id="profileMenu" hidden>
+              <div class="profile-head">
+                <span class="avatar avatar-lg" aria-hidden="true"><span id="profileMenuInitials">S</span></span>
+                <div>
+                  <strong id="profileMenuName">Student</strong>
+                  <span class="muted-sm">Student profile</span>
+                </div>
+              </div>
+              <button type="button" class="menu-item" data-action="goto-settings"><i data-icon="user" data-size="16"></i>Edit profile</button>
+              <button type="button" class="menu-item" data-action="toggle-theme"><i data-icon="moon" data-size="16"></i>Switch theme</button>
+              <button type="button" class="menu-item" data-action="export-data"><i data-icon="download" data-size="16"></i>Download backup</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="main" id="main" tabindex="-1">
+
+        <!-- ============ VIEW: DASHBOARD ============ -->
+        <section class="view" id="view-dashboard" aria-labelledby="welcomeTitle">
+          <div class="hero">
+            <div class="hero-text">
+              <span class="eyebrow"><i data-icon="sparkles" data-size="14"></i>Your dashboard</span>
+              <h1 id="welcomeTitle">Welcome back, Student!</h1>
+              <p id="welcomeSub">Small, steady steps beat last-minute sprints.</p>
+            </div>
+            <div class="hero-actions">
+              <button type="button" class="btn btn-light" data-action="add"><i data-icon="plus" data-size="18"></i>Add Assignment</button>
+              <button type="button" class="btn btn-outline-light" id="heroSampleBtn" data-action="load-sample"><i data-icon="sparkles" data-size="16"></i>Load sample data</button>
+            </div>
+          </div>
+
+          <div class="stats" aria-label="Assignment statistics">
+            <button type="button" class="stat-card" data-goto="all" title="View all assignments">
+              <span class="stat-icon tone-violet"><i data-icon="layers" data-size="22"></i></span>
+              <span class="stat-body">
+                <span class="stat-label">Total Assignments</span>
+                <strong class="stat-value" id="statTotal">0</strong>
+                <span class="stat-note" id="statTotalNote"></span>
+              </span>
+            </button>
+            <button type="button" class="stat-card" data-goto="pending" title="View pending assignments">
+              <span class="stat-icon tone-blue"><i data-icon="clock" data-size="22"></i></span>
+              <span class="stat-body">
+                <span class="stat-label">Pending</span>
+                <strong class="stat-value" id="statPending">0</strong>
+                <span class="stat-note" id="statPendingNote"></span>
+              </span>
+            </button>
+            <button type="button" class="stat-card" data-goto="completed" title="View completed assignments">
+              <span class="stat-icon tone-green"><i data-icon="checkCircle" data-size="22"></i></span>
+              <span class="stat-body">
+                <span class="stat-label">Completed</span>
+                <strong class="stat-value" id="statCompleted">0</strong>
+                <span class="stat-note" id="statCompletedNote"></span>
+              </span>
+            </button>
+            <button type="button" class="stat-card" id="statCardOverdue" data-goto="overdue" title="View overdue assignments">
+              <span class="stat-icon tone-red"><i data-icon="alert" data-size="22"></i></span>
+              <span class="stat-body">
+                <span class="stat-label">Overdue</span>
+                <strong class="stat-value" id="statOverdue">0</strong>
+                <span class="stat-note" id="statOverdueNote"></span>
+              </span>
+            </button>
+          </div>
+
+          <section class="card progress-card" aria-labelledby="progressTitle">
+            <div class="progress-head">
+              <div>
+                <h2 id="progressTitle">Completion progress</h2>
+                <p class="muted" id="progressText">No assignments yet.</p>
+              </div>
+              <strong class="progress-percent" id="progressPercent">0%</strong>
+            </div>
+            <div class="progress" id="progressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Percentage of assignments completed">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+          </section>
+
+          <div class="dash-grid">
+            <section class="card" aria-labelledby="upcomingTitle">
+              <div class="card-head">
+                <h2 id="upcomingTitle">Upcoming deadlines</h2>
+                <span class="muted-sm">Nearest first</span>
+              </div>
+              <div id="upcomingBody"></div>
+            </section>
+
+            <section class="card insights-card" aria-labelledby="insightsTitle">
+              <div class="card-head">
+                <h2 id="insightsTitle">Productivity insights</h2>
+              </div>
+              <div class="ring-row">
+                <div class="ring" id="ringChart" style="--pct:0" role="img" aria-label="0 percent complete">
+                  <div class="ring-inner"><strong id="ringPercent">0%</strong><span>complete</span></div>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric"><span class="metric-label">Pending workload</span><strong id="insightWorkload">0</strong></div>
+                  <div class="metric"><span class="metric-label">High priority pending</span><strong id="insightHigh">0</strong></div>
+                  <div class="metric"><span class="metric-label">Completed</span><strong id="insightCompleted">0</strong></div>
+                  <div class="metric"><span class="metric-label">Overdue</span><strong id="insightOverdue">0</strong></div>
+                </div>
+              </div>
+              <h3 class="mini-title">Pending by priority</h3>
+              <div class="bars" id="priorityBars"></div>
+              <h3 class="mini-title">Due over the next 7 days</h3>
+              <div class="week-chart" id="weekChart"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ============ VIEW: ASSIGNMENT LISTS (All / Pending / Completed) ============ -->
+        <section class="view" id="view-list" aria-labelledby="listTitle" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="listTitle">All Assignments</h1>
+              <p class="muted" id="listSubtitle"></p>
+            </div>
+            <button type="button" class="btn btn-primary" data-action="add"><i data-icon="plus" data-size="18"></i>Add Assignment</button>
+          </div>
+
+          <div class="toolbar card" id="listToolbar">
+            <div class="quick-filters" role="group" aria-label="Quick filters">
+              <button type="button" class="chip-btn" data-quick="all" aria-pressed="true">All</button>
+              <button type="button" class="chip-btn" data-quick="today" aria-pressed="false" title="Due today">Today</button>
+              <button type="button" class="chip-btn" data-quick="week" aria-pressed="false" title="Due in the next 7 days, starting today">This Week</button>
+              <button type="button" class="chip-btn" data-quick="overdue" aria-pressed="false" title="Past due and not completed">Overdue</button>
+            </div>
+            <div class="filters">
+              <label class="select-wrap"><span class="sr-only">Filter by subject</span>
+                <select id="filterSubject"><option value="all">All subjects</option></select>
+              </label>
+              <label class="select-wrap"><span class="sr-only">Filter by priority</span>
+                <select id="filterPriority">
+                  <option value="all">All priorities</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label class="select-wrap" id="statusFilterWrap"><span class="sr-only">Filter by status</span>
+                <select id="filterStatus">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </label>
+              <label class="select-wrap"><span class="sr-only">Sort assignments</span>
+                <select id="sortBy">
+                  <option value="due">Sort: Due date</option>
+                  <option value="priority">Sort: Priority</option>
+                  <option value="newest">Sort: Recently added</option>
+                  <option value="title">Sort: Title A to Z</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-ghost btn-sm" id="clearFiltersBtn" data-action="clear-filters"><i data-icon="x" data-size="16"></i>Clear filters</button>
+            </div>
+            <p class="result-count" id="resultCount" aria-live="polite"></p>
+          </div>
+
+          <div class="assignment-grid" id="assignmentList"></div>
+        </section>
+
+        <!-- ============ VIEW: CALENDAR ============ -->
+        <section class="view" id="view-calendar" aria-labelledby="calendarHeading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="calendarHeading">Calendar</h1>
+              <p class="muted">See every due date at a glance. Select a day to view its assignments.</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-action="add"><i data-icon="plus" data-size="18"></i>Add Assignment</button>
+          </div>
+
+          <div class="calendar-layout">
+            <section class="card calendar-card" aria-label="Monthly calendar">
+              <div class="calendar-head">
+                <h2 id="calTitle">Month</h2>
+                <div class="cal-controls">
+                  <button type="button" class="icon-btn icon-btn-lg" data-action="cal-prev" aria-label="Previous month" title="Previous month"><i data-icon="chevL"></i></button>
+                  <button type="button" class="btn btn-ghost btn-sm" data-action="cal-today">Today</button>
+                  <button type="button" class="icon-btn icon-btn-lg" data-action="cal-next" aria-label="Next month" title="Next month"><i data-icon="chevR"></i></button>
+                </div>
+              </div>
+              <div class="cal-weekdays" aria-hidden="true">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div class="cal-grid" id="calGrid" role="group" aria-label="Days of the month. Use arrow keys to move between days."></div>
+              <div class="cal-legend" aria-hidden="true">
+                <span><i class="dot dot-high"></i>High</span>
+                <span><i class="dot dot-medium"></i>Medium</span>
+                <span><i class="dot dot-low"></i>Low</span>
+                <span><i class="dot dot-done"></i>Completed</span>
+              </div>
+            </section>
+
+            <aside class="card day-panel" aria-live="polite" aria-labelledby="dayTitle">
+              <h2 id="dayTitle">Selected day</h2>
+              <p class="muted" id="daySub"></p>
+              <div class="day-list" id="dayList"></div>
+              <button type="button" class="btn btn-soft btn-block" id="dayAddBtn" data-action="add-on-date"><i data-icon="plus" data-size="16"></i>Add assignment on this day</button>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ============ VIEW: SETTINGS ============ -->
+        <section class="view" id="view-settings" aria-labelledby="settingsHeading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="settingsHeading">Settings</h1>
+              <p class="muted">Personalise DueWise and manage the data saved in this browser.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <section class="card" aria-labelledby="profileHeading">
+              <h2 id="profileHeading">Student profile</h2>
+              <form id="profileForm" class="stack" novalidate>
+                <div class="field">
+                  <label for="profileName">Your name</label>
+                  <input type="text" id="profileName" maxlength="30" autocomplete="name" placeholder="e.g. Aarav">
+                  <p class="field-error" id="errProfile" aria-live="polite"></p>
+                </div>
+                <button type="submit" class="btn btn-primary">Save name</button>
+              </form>
+            </section>
+
+            <section class="card" aria-labelledby="appearanceHeading">
+              <h2 id="appearanceHeading">Appearance</h2>
+              <p class="muted">Your choice is remembered the next time you open DueWise.</p>
+              <div class="segmented segmented-2" role="group" aria-label="Theme">
+                <button type="button" class="seg-btn" data-action="set-theme" data-theme-value="light" aria-pressed="true"><i data-icon="sun" data-size="16"></i>Light</button>
+                <button type="button" class="seg-btn" data-action="set-theme" data-theme-value="dark" aria-pressed="false"><i data-icon="moon" data-size="16"></i>Dark</button>
+              </div>
+            </section>
+
+            <section class="card settings-wide" aria-labelledby="dataHeading">
+              <h2 id="dataHeading">Data and demo content</h2>
+              <p class="muted" id="demoInfo"></p>
+              <ul class="action-list">
+                <li>
+                  <div><strong>Load sample assignments</strong><span class="muted-sm">Adds realistic BCA assignments so you can explore every feature. Your own assignments are never overwritten.</span></div>
+                  <button type="button" class="btn btn-soft btn-sm" data-action="load-sample">Load sample data</button>
+                </li>
+                <li>
+                  <div><strong>Clear demo data</strong><span class="muted-sm">Removes only the sample assignments. Anything you added yourself stays.</span></div>
+                  <button type="button" class="btn btn-ghost btn-sm" data-action="clear-demo">Clear demo data</button>
+                </li>
+                <li>
+                  <div><strong>Download backup</strong><span class="muted-sm">Saves all your assignments to a JSON file on your computer.</span></div>
+                  <button type="button" class="btn btn-ghost btn-sm" data-action="export-data"><i data-icon="download" data-size="16"></i>Download</button>
+                </li>
+                <li>
+                  <div><strong>Delete all assignments</strong><span class="muted-sm">Permanently removes everything saved in this browser. This cannot be undone.</span></div>
+                  <button type="button" class="btn btn-danger btn-sm" data-action="delete-all"><i data-icon="trash" data-size="16"></i>Delete all</button>
+                </li>
+              </ul>
+            </section>
+
+            <section class="card settings-wide" aria-labelledby="aboutHeading">
+              <h2 id="aboutHeading">About DueWise</h2>
+              <p class="muted">DueWise stores everything in your browser using LocalStorage. Nothing is uploaded anywhere, and your data stays on this device and browser only.</p>
+              <p class="shortcuts"><kbd>/</kbd> focus search &nbsp; <kbd>N</kbd> new assignment &nbsp; <kbd>Esc</kbd> close dialogs</p>
+            </section>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== MOBILE NAVIGATION ===================== -->
+  <nav class="bottom-nav" aria-label="Mobile navigation">
+    <button type="button" class="bn-item" data-nav="dashboard"><i data-icon="dashboard" data-size="20"></i><span>Dashboard</span></button>
+    <button type="button" class="bn-item" data-nav="all"><i data-icon="list" data-size="20"></i><span>All</span></button>
+    <button type="button" class="bn-item" data-nav="pending"><i data-icon="clock" data-size="20"></i><span>Pending</span></button>
+    <button type="button" class="bn-item" data-nav="completed"><i data-icon="checkCircle" data-size="20"></i><span>Completed</span></button>
+    <button type="button" class="bn-item" data-nav="calendar"><i data-icon="calendar" data-size="20"></i><span>Calendar</span></button>
+    <button type="button" class="bn-item" data-nav="settings"><i data-icon="settings" data-size="20"></i><span>Settings</span></button>
+  </nav>
+  <button type="button" class="fab" data-action="add" aria-label="Add assignment" title="Add assignment"><i data-icon="plus" data-size="24"></i></button>
+
+  <!-- ===================== ADD / EDIT ASSIGNMENT MODAL ===================== -->
+  <div class="overlay" id="assignmentModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-head">
+        <div>
+          <h2 id="modalTitle">Add Assignment</h2>
+          <p class="muted" id="modalSubtitle">Fields marked with * are required.</p>
+        </div>
+        <button type="button" class="icon-btn icon-btn-lg" data-action="close-modal" aria-label="Close dialog" title="Close"><i data-icon="x"></i></button>
+      </header>
+
+      <form id="assignmentForm" novalidate>
+        <div class="field">
+          <label for="fieldTitle">Assignment title <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="fieldTitle" maxlength="100" placeholder="e.g. Build a responsive portfolio website" autocomplete="off" required aria-describedby="errTitle">
+          <p class="field-error" id="errTitle" aria-live="polite"></p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="fieldSubject">Subject <span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="fieldSubject" maxlength="60" list="subjectOptions" placeholder="Choose or type a subject" autocomplete="off" required aria-describedby="errSubject">
+            <datalist id="subjectOptions"></datalist>
+            <p class="field-error" id="errSubject" aria-live="polite"></p>
+          </div>
+          <div class="field">
+            <label for="fieldDue">Due date <span class="req" aria-hidden="true">*</span></label>
+            <input type="date" id="fieldDue" min="2000-01-01" max="2100-12-31" required aria-describedby="errDue">
+            <p class="field-error" id="errDue" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <fieldset class="field fieldset">
+          <legend>Priority</legend>
+          <div class="segmented segmented-3">
+            <input type="radio" name="priority" id="prioLow" value="low">
+            <label for="prioLow" class="seg-label seg-low">Low</label>
+            <input type="radio" name="priority" id="prioMedium" value="medium" checked>
+            <label for="prioMedium" class="seg-label seg-medium">Medium</label>
+            <input type="radio" name="priority" id="prioHigh" value="high">
+            <label for="prioHigh" class="seg-label seg-high">High</label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="fieldDescription">Description <span class="optional">(optional)</span></label>
+          <textarea id="fieldDescription" rows="3" maxlength="500" placeholder="Add notes, requirements or submission instructions"></textarea>
+          <p class="char-count" id="descCount">0 / 500</p>
+        </div>
+
+        <footer class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-action="close-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveBtn">Add Assignment</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== CONFIRMATION DIALOG ===================== -->
+  <div class="overlay" id="confirmModal" hidden>
+    <div class="modal modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div class="confirm-icon" id="confirmIcon"></div>
+      <h2 id="confirmTitle">Are you sure?</h2>
+      <p class="muted" id="confirmMessage"></p>
+      <div class="modal-actions modal-actions-center">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TOAST NOTIFICATIONS ===================== -->
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
